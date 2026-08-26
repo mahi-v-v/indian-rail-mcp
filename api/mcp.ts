@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createRailMcpServer } from "../src/mcp/server.ts";
 
@@ -41,8 +42,28 @@ const clientIp = (request: Request): string =>
 	"unknown";
 
 /**
+ * Compare two secrets without leaking their contents through timing.
+ *
+ * A plain `===` returns as soon as two bytes differ, so how long it takes is a
+ * function of how many leading characters the guess got right. That is enough
+ * to recover a key one character at a time. Lengths are hashed first because
+ * timingSafeEqual itself throws on a length mismatch, which would leak the
+ * key's length.
+ */
+function secretsMatch(a: string, b: string): boolean {
+	const ha = createHash("sha256").update(a).digest();
+	const hb = createHash("sha256").update(b).digest();
+	return timingSafeEqual(ha, hb);
+}
+
+/**
  * PNR returns passenger personal data, so it is only enabled for a caller
  * presenting the configured key. Everything else is open.
+ *
+ * RAIL_API_KEY is a secret you generate yourself — it is not issued by IRCTC,
+ * CRIS or anyone else. It exists because this endpoint is public: without it,
+ * anyone who found the URL could look up passenger details through your
+ * deployment, with your server making the requests.
  */
 function pnrAuthorized(request: Request): boolean {
 	const expected = process.env["RAIL_API_KEY"];
@@ -51,7 +72,7 @@ function pnrAuthorized(request: Request): boolean {
 		request.headers.get("x-api-key") ??
 		request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
 		"";
-	return provided.length > 0 && provided === expected;
+	return provided.length > 0 && secretsMatch(provided, expected);
 }
 
 const json = (status: number, body: unknown, headers: HeadersInit = {}) =>
