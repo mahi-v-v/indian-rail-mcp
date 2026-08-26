@@ -1,0 +1,65 @@
+{
+  "name": "indian-rail-mcp",
+  "version": "0.1.0",
+  "description": "Indian Railways data from official sources (NTES + IRCTC) \u2014 typed library and MCP server. Train schedules, live running status, trains between stations, live station boards, PNR status and berth-level seat availability.",
+  "keywords": [
+    "indian-railways",
+    "irctc",
+    "ntes",
+    "train",
+    "pnr",
+    "live-train-status",
+    "seat-availability",
+    "train-schedule",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "smoke": "node --experimental-strip-types test/smoke.ts",
+    "test:mcp": "node --experimental-strip-types test/mcp-local.ts",
+    "fixtures": "node test/capture-fixtures.mjs"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": ">=1.20.0",
+    "zod": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "zod": "^4.4.3"
+  }
+}
