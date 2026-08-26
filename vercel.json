@@ -1,10 +1,18 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "regions": ["bom1"],
   "functions": {
     "api/mcp.ts": {
       "memory": 1024,
       "maxDuration": 30
     }
   },
-  "regions": ["bom1"]
+  "rewrites": [{ "source": "/api/mcp/:path*", "destination": "/api/mcp" }],
+  "headers": [
+    {
+      "source": "/api/mcp",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    }
+  ]
 }

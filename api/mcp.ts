@@ -62,7 +62,19 @@ const json = (status: number, body: unknown, headers: HeadersInit = {}) =>
 
 export default async function handler(request: Request): Promise<Response> {
 	if (request.method === "GET" && new URL(request.url).pathname.endsWith("/health")) {
-		return json(200, { status: "ok", server: "indian-rail" });
+		// Report the execution region. NTES and IRCTC are both in India, so running
+		// from bom1 is worth several hundred ms per upstream call — and our flows
+		// make two to four sequential calls. Note bom1 needs a Vercel plan that
+		// allows it; otherwise deployments fall back to the default region and this
+		// will say so.
+		const region = process.env["VERCEL_REGION"] ?? "local";
+		return json(200, {
+			status: "ok",
+			server: "indian-rail",
+			region,
+			regionOptimal: region === "bom1" || region === "local",
+			pnrEnabled: Boolean(process.env["RAIL_API_KEY"])
+		});
 	}
 
 	const { limited, retryAfter } = rateLimited(clientIp(request));
