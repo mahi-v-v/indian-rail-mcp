@@ -34,6 +34,31 @@ function unwrap<T extends Record<string, unknown>>(data: T): T {
 	return data;
 }
 
+/**
+ * Reduce an HTML interstitial to the bits that identify it: the title, any
+ * Akamai/CDN reference id, and the leading text. Enough to tell a WAF block
+ * from an outage without dumping a whole page into an error message.
+ */
+function summarizeBlockPage(body: string): string {
+	const flat = body.replace(/<script[\s\S]*?<\/script>/gi, " ");
+	const title = flat.match(/<title[^>]*>([^<]{0,120})<\/title>/i)?.[1]?.trim();
+	const reference = flat.match(/Reference\s*#?\s*[:.]?\s*([\w.-]{6,60})/i)?.[1];
+	const text = flat
+		.replace(/<[^>]+>/g, " ")
+		.replace(/&\w+;/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+		.slice(0, 180);
+
+	const parts = [
+		title ? `title="${title}"` : null,
+		reference ? `reference=${reference}` : null,
+		text ? `text="${text}"` : null
+	].filter(Boolean);
+
+	return parts.length ? parts.join(" ") : `<${body.length} bytes, no readable text>`;
+}
+
 async function postChart<T extends Record<string, unknown>>(
 	path: string,
 	body: Record<string, unknown>
@@ -49,8 +74,13 @@ async function postChart<T extends Record<string, unknown>>(
 	try {
 		data = JSON.parse(text);
 	} catch {
+		// A non-JSON body here is almost always a WAF interstitial. Keep a snippet:
+		// Akamai denial pages carry a "Reference #" that identifies the rule, which
+		// is the difference between diagnosing a real block and guessing at one.
 		throw new IrctcError(
-			`IRCTC ${path} returned a non-JSON response (HTTP ${res.status}).`
+			`IRCTC ${path} returned a non-JSON response (HTTP ${res.status}). ` +
+				`This usually means a bot-protection page rather than an API error. ` +
+				`Body: ${summarizeBlockPage(text)}`
 		);
 	}
 
@@ -174,7 +204,8 @@ export async function getPnrStatus(
 	} catch {
 		throw new IrctcError(
 			`IRCTC PNR enquiry returned a non-JSON response (HTTP ${res.status}). ` +
-				`The endpoint may be temporarily unavailable.`
+				`This usually means a bot-protection page rather than an API error. ` +
+				`Body: ${summarizeBlockPage(text)}`
 		);
 	}
 
