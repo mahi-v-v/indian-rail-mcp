@@ -31,7 +31,11 @@
       "types": "./dist/mcp/index.d.ts",
       "import": "./dist/mcp/index.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./stdio": {
+      "types": "./dist/mcp/stdio.d.ts",
+      "import": "./dist/mcp/stdio.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -41,7 +45,9 @@
     "test:mcp": "npm run build && node --experimental-strip-types test/mcp-local.ts",
     "fixtures": "node test/capture-fixtures.mjs",
     "dev": "npm run build && node --experimental-strip-types dev-server.ts",
-    "verify:vercel": "node test/verify-vercel-build.mjs"
+    "verify:vercel": "node test/verify-vercel-build.mjs",
+    "start": "node dist/mcp/stdio.js",
+    "stdio": "npm run build && node dist/mcp/stdio.js"
   },
   "dependencies": {
     "cheerio": "^1.2.0"
@@ -63,5 +69,8 @@
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0",
     "zod": "^4.4.3"
+  },
+  "bin": {
+    "indian-rail-mcp": "./dist/mcp/stdio.js"
   }
 }
