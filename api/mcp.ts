@@ -1,6 +1,13 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
-import { createRailMcpServer } from "../src/mcp/server.ts";
+// Imports the BUILT output, not ../src/*.ts.
+//
+// Vercel compiles files in api/ with its own tsc settings, which do not include
+// `rewriteRelativeImportExtensions`. A ".ts" specifier therefore survives into
+// the emitted JavaScript and points at a file that does not exist at runtime,
+// crashing the function with ERR_MODULE_NOT_FOUND. `npm run build` emits dist/
+// with the extensions already rewritten, so importing from there is safe.
+import { createRailMcpServer } from "../dist/mcp/index.js";
 
 /**
  * Vercel Web Handler.
