@@ -115,6 +115,11 @@
 			.tool-desc { font-size: 14.5px; color: var(--muted); margin-top: 3px; }
 			.tool-src { font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase;
 				color: var(--muted); opacity: 0.75; margin-top: 7px; }
+			.tool-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+			.badge { font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase;
+				font-weight: 600; padding: 2px 7px; border-radius: 999px; white-space: nowrap; flex: none; }
+			.badge.both { background: var(--accent-soft); color: var(--accent); }
+			.badge.local { background: var(--warn-bg); color: var(--warn-text); border: 1px solid var(--warn-border); }
 
 			.note {
 				background: var(--warn-bg); border: 1px solid var(--warn-border);
@@ -149,9 +154,13 @@
 					for AI assistants, and as a TypeScript library.
 				</p>
 				<div class="actions">
-					<a class="btn primary" href="https://github.com/mahi-v-v/indian-rail-mcp">View on GitHub</a>
-					<a class="btn" href="#connect">Connect an assistant</a>
+					<a class="btn primary" href="#connect">Connect an assistant</a>
+					<a class="btn" href="https://github.com/mahi-v-v/indian-rail-mcp">View on GitHub</a>
 				</div>
+				<p style="margin-top: 18px; font-size: 14px; color: var(--muted)">
+					<code>npx -y indian-rail-mcp</code> &mdash; runs on your machine, all six tools.
+					A hosted endpoint is available too, with four.
+				</p>
 			</div>
 		</header>
 
@@ -178,50 +187,84 @@
 				<h2>Tools</h2>
 				<div class="tools">
 					<div class="tool">
-						<div class="tool-name mono">getTrainInfo</div>
+						<div class="tool-head">
+							<div class="tool-name mono">getTrainInfo</div>
+							<span class="badge both">both</span>
+						</div>
 						<div class="tool-desc">Full schedule and route &mdash; every stop with arrival, departure, halt and distance.</div>
 						<div class="tool-src">Source &middot; NTES</div>
 					</div>
 					<div class="tool">
-						<div class="tool-name mono">trackTrain</div>
+						<div class="tool-head">
+							<div class="tool-name mono">trackTrain</div>
+							<span class="badge both">both</span>
+						</div>
 						<div class="tool-desc">Live running status: scheduled against actual times, delay, platform and coach position.</div>
 						<div class="tool-src">Source &middot; NTES</div>
 					</div>
 					<div class="tool">
-						<div class="tool-name mono">searchTrainBetweenStations</div>
+						<div class="tool-head">
+							<div class="tool-name mono">searchTrainBetweenStations</div>
+							<span class="badge both">both</span>
+						</div>
 						<div class="tool-desc">Direct trains between two stations, with departure, arrival, duration and days of run.</div>
 						<div class="tool-src">Source &middot; NTES</div>
 					</div>
 					<div class="tool">
-						<div class="tool-name mono">getLiveStation</div>
+						<div class="tool-head">
+							<div class="tool-name mono">getLiveStation</div>
+							<span class="badge both">both</span>
+						</div>
 						<div class="tool-desc">What is arriving and departing at a station over the next couple of hours.</div>
 						<div class="tool-src">Source &middot; NTES</div>
 					</div>
 					<div class="tool">
-						<div class="tool-name mono">getSeatAvailability</div>
-						<div class="tool-desc">Coach-by-coach vacancy from the reservation chart, down to individual berths.</div>
+						<div class="tool-head">
+							<div class="tool-name mono">getSeatAvailability</div>
+							<span class="badge local">stdio only</span>
+						</div>
+						<div class="tool-desc">Coach-by-coach vacancy from the reservation chart, down to individual berths &mdash; including berths free on part of a route.</div>
 						<div class="tool-src">Source &middot; IRCTC</div>
 					</div>
 					<div class="tool">
-						<div class="tool-name mono">checkPnrStatus</div>
-						<div class="tool-desc">Booking status for a PNR. Returns passenger details, so it needs an API key.</div>
-						<div class="tool-src">Source &middot; IRCTC &middot; key required</div>
+						<div class="tool-head">
+							<div class="tool-name mono">checkPnrStatus</div>
+							<span class="badge local">stdio only</span>
+						</div>
+						<div class="tool-desc">Booking status for a PNR: passengers, coach, berth and current state.</div>
+						<div class="tool-src">Source &middot; IRCTC</div>
 					</div>
 				</div>
+				<p style="margin-top: 18px; font-size: 14.5px; color: var(--muted)">
+					<strong style="color: var(--text)">both</strong> works over stdio and at the hosted URL.
+					<strong style="color: var(--text)">stdio only</strong> works when you run the server on your
+					own machine &mdash; IRCTC refuses requests from datacenters, so the hosted endpoint cannot
+					reach those two. <a href="#why-stdio">Why</a>.
+				</p>
 			</div>
 		</section>
 
 		<section id="connect">
 			<div class="wrap">
 				<h2>Connect an assistant</h2>
-				<p>The endpoint speaks MCP over Streamable HTTP:</p>
+
+				<h3>Recommended &mdash; run it yourself (all six tools)</h3>
+				<p>
+					Your MCP client launches it as a subprocess. Nothing to host, and the two
+					IRCTC tools work.
+				</p>
+				<pre><code>{
+  "mcpServers": {
+    "indian-rail": {
+      "command": "npx",
+      "args": ["-y", "indian-rail-mcp"]
+    }
+  }
+}</code></pre>
+
+				<h3>Hosted URL (four of six tools)</h3>
+				<p>No install, but IRCTC refuses this server, so seat availability and PNR are unavailable.</p>
 				<pre><code class="mono" id="endpoint">https://indian-rail-mcp.vercel.app/api/mcp</code></pre>
-
-				<h3>Claude Code</h3>
-				<pre><code>claude mcp add --transport http indian-rail \
-  https://indian-rail-mcp.vercel.app/api/mcp</code></pre>
-
-				<h3>Any MCP client</h3>
 				<pre><code>{
   "mcpServers": {
     "indian-rail": {
@@ -235,6 +278,29 @@
 				<pre><code>import { trackTrain } from "indian-rail-mcp";
 
 const status = await trackTrain("12951");</code></pre>
+			</div>
+		</section>
+
+		<section id="why-stdio">
+			<div class="wrap">
+				<h2>Why running it yourself gets more</h2>
+				<p>
+					IRCTC&rsquo;s edge blocks datacenter traffic. The same request, with identical
+					headers, seconds apart:
+				</p>
+				<pre><code>your machine    OK    18 coaches | chart=true | 51 vacant berths listed
+hosted server   403   Access Denied &mdash; "You don't have permission to access
+                      /online-charts/api/trainComposition on this server"</code></pre>
+				<p>
+					Nothing in the code differs. It is a decision made at their edge about where the
+					request came from, and no amount of header-fiddling changes it. NTES has no such
+					restriction, which is why four tools work everywhere and two do not.
+				</p>
+				<p>
+					Run the server on your own machine and the requests come from you, so all six
+					work. That is also the better privacy outcome &mdash; PNR responses never touch
+					anyone else&rsquo;s server.
+				</p>
 			</div>
 		</section>
 
@@ -256,10 +322,12 @@ const status = await trackTrain("12951");</code></pre>
 				</div>
 
 				<div class="note">
-					<strong>PNR data is personal data.</strong> PNR lookup returns passenger
-					names, ages and berths. It is disabled unless a caller presents an API key,
-					and responses are never logged or stored. Please keep it that way if you
-					self-host.
+					<strong>PNR data is personal data.</strong> PNR lookup returns passenger names,
+					ages and berths. Run it yourself over stdio and that data never leaves your
+					machine. On a hosted server it is disabled unless the caller presents an API
+					key, and it fails closed if no key is configured. Responses are never logged or
+					stored, and there are deliberately no batch lookups. Please keep it that way if
+					you self-host.
 				</div>
 			</div>
 		</section>
