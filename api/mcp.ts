@@ -2,7 +2,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createRailMcpServer } from "../src/mcp/server.ts";
 
-export const config = { runtime: "nodejs" };
+/**
+ * Vercel Web Handler.
+ *
+ * Named method exports (GET/POST/DELETE) are what opt this file into the Web
+ * standard Request/Response signature. A bare `export default function
+ * handler(request)` is treated as the Node.js `(req, res)` handler instead, and
+ * Vercel then passes an IncomingMessage — at which point `request.headers.get()`
+ * and `new URL(request.url)` both throw and the function 500s.
+ */
 
 /**
  * Per-instance rate limiter.
@@ -45,10 +53,9 @@ const clientIp = (request: Request): string =>
  * Compare two secrets without leaking their contents through timing.
  *
  * A plain `===` returns as soon as two bytes differ, so how long it takes is a
- * function of how many leading characters the guess got right. That is enough
- * to recover a key one character at a time. Lengths are hashed first because
- * timingSafeEqual itself throws on a length mismatch, which would leak the
- * key's length.
+ * function of how many leading characters the guess got right. Lengths are
+ * hashed first because timingSafeEqual throws on a length mismatch, which would
+ * leak the key's length.
  */
 function secretsMatch(a: string, b: string): boolean {
 	const ha = createHash("sha256").update(a).digest();
@@ -76,28 +83,12 @@ function pnrAuthorized(request: Request): boolean {
 }
 
 const json = (status: number, body: unknown, headers: HeadersInit = {}) =>
-	new Response(JSON.stringify(body), {
+	new Response(JSON.stringify(body, null, 2), {
 		status,
 		headers: { "Content-Type": "application/json", ...headers }
 	});
 
-export default async function handler(request: Request): Promise<Response> {
-	if (request.method === "GET" && new URL(request.url).pathname.endsWith("/health")) {
-		// Report the execution region. NTES and IRCTC are both in India, so running
-		// from bom1 is worth several hundred ms per upstream call — and our flows
-		// make two to four sequential calls. Note bom1 needs a Vercel plan that
-		// allows it; otherwise deployments fall back to the default region and this
-		// will say so.
-		const region = process.env["VERCEL_REGION"] ?? "local";
-		return json(200, {
-			status: "ok",
-			server: "indian-rail",
-			region,
-			regionOptimal: region === "bom1" || region === "local",
-			pnrEnabled: Boolean(process.env["RAIL_API_KEY"])
-		});
-	}
-
+async function serveMcp(request: Request): Promise<Response> {
 	const { limited, retryAfter } = rateLimited(clientIp(request));
 	if (limited) {
 		return json(
@@ -137,4 +128,34 @@ export default async function handler(request: Request): Promise<Response> {
 	} finally {
 		await server.close().catch(() => {});
 	}
+}
+
+export async function POST(request: Request): Promise<Response> {
+	return serveMcp(request);
+}
+
+/**
+ * MCP's Streamable HTTP transport uses GET to open an SSE stream. A browser
+ * visiting this URL sends no such Accept header, and would otherwise get a bare
+ * "Not Acceptable" JSON-RPC error — so answer people with something useful and
+ * leave real clients to the transport.
+ */
+export async function GET(request: Request): Promise<Response> {
+	const accept = request.headers.get("accept") ?? "";
+	if (accept.includes("text/event-stream")) return serveMcp(request);
+
+	return json(200, {
+		name: "indian-rail",
+		description:
+			"Indian Railways MCP server — train schedules, live running status, " +
+			"seat availability and PNR status.",
+		transport: "Streamable HTTP (POST JSON-RPC to this URL)",
+		health: "/api/health",
+		documentation: "https://github.com/mahi-v-v/indian-rail-mcp",
+		hint: "This endpoint speaks MCP. Point an MCP client at it rather than a browser."
+	});
+}
+
+export async function DELETE(request: Request): Promise<Response> {
+	return serveMcp(request);
 }

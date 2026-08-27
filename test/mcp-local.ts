@@ -3,7 +3,8 @@
  * no deploy. Verifies the handshake, tool listing, a real tool call, the PNR
  * auth gate and the rate limiter.
  */
-import handler from "../api/mcp.ts";
+import { GET, POST } from "../api/mcp.ts";
+import { GET as healthGET } from "../api/health.ts";
 
 const ACCEPT = "application/json, text/event-stream";
 
@@ -13,7 +14,7 @@ async function rpc(
 	headers: Record<string, string> = {},
 	id: number | null = 1
 ): Promise<any> {
-	const res = await handler(
+	const res = await POST(
 		new Request("https://local.test/api/mcp", {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Accept: ACCEPT, ...headers },
@@ -26,7 +27,7 @@ async function rpc(
 		return { _status: res.status, ...JSON.parse(text) };
 	} catch {
 		// SSE framing: pull the data: line out.
-		const line = text.split("\n").find((l) => l.startsWith("data:"));
+		const line = text.split("\n").find((l: string) => l.startsWith("data:"));
 		return { _status: res.status, ...(line ? JSON.parse(line.slice(5)) : { raw: text }) };
 	}
 }
@@ -122,7 +123,7 @@ check(
 console.log("\n=== rate limiting ===");
 let got429 = false;
 for (let i = 0; i < 40; i++) {
-	const res = await handler(
+	const res = await POST(
 		new Request("https://local.test/api/mcp", {
 			method: "POST",
 			headers: { "Content-Type": "application/json", Accept: ACCEPT, "x-forwarded-for": "203.0.113.9" },

@@ -1,16 +1,19 @@
 /**
- * Local dev server — runs the same handler Vercel does, over node:http.
+ * Local dev server — dispatches to the same Web Handler exports Vercel uses.
  *
  *   RAIL_API_KEY=dev-key node --experimental-strip-types dev-server.ts
  *
- * Useful for pointing an MCP client (or another app) at the server without
- * deploying.
+ * It routes by method to the named GET/POST/DELETE exports rather than calling
+ * a default export, so a signature mistake shows up here instead of only in
+ * production.
  */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
-import handler from "./api/mcp.ts";
+import * as mcp from "./api/mcp.ts";
+import * as health from "./api/health.ts";
 
+const PORT = Number(process.env["PORT"] ?? 8787);
 const STATIC_DIR = "public";
 const MIME: Record<string, string> = {
 	".html": "text/html; charset=utf-8",
@@ -22,13 +25,20 @@ const MIME: Record<string, string> = {
 	".png": "image/png"
 };
 
-const PORT = Number(process.env["PORT"] ?? 8787);
+type Handler = (request: Request) => Promise<Response>;
+
+function route(path: string, method: string): Handler | null {
+	const table: Record<string, Partial<Record<string, Handler>>> = {
+		"/api/mcp": { GET: mcp.GET, POST: mcp.POST, DELETE: mcp.DELETE },
+		"/api/health": { GET: health.GET }
+	};
+	return table[path]?.[method] ?? null;
+}
 
 const server = createServer((req, res) => {
 	const path = (req.url ?? "/").split("?")[0] ?? "/";
+	const method = req.method ?? "GET";
 
-	// Anything outside /api is served from public/, matching how Vercel treats
-	// `outputDirectory: "public"` alongside the api/ function.
 	if (!path.startsWith("/api/")) {
 		const rel = path === "/" ? "index.html" : normalize(path).replace(/^([/\.]+)/, "");
 		readFile(join(STATIC_DIR, rel))
@@ -44,6 +54,13 @@ const server = createServer((req, res) => {
 		return;
 	}
 
+	const handler = route(path, method);
+	if (!handler) {
+		res.statusCode = 404;
+		res.end(JSON.stringify({ error: `No handler for ${method} ${path}` }));
+		return;
+	}
+
 	const chunks: Buffer[] = [];
 	req.on("data", (c: Buffer) => chunks.push(c));
 	req.on("end", () => {
@@ -54,7 +71,6 @@ const server = createServer((req, res) => {
 			else if (Array.isArray(v)) headers.set(k, v.join(", "));
 		}
 
-		const method = req.method ?? "GET";
 		const request = new Request(url, {
 			method,
 			headers,
@@ -69,13 +85,14 @@ const server = createServer((req, res) => {
 			})
 			.catch((err: unknown) => {
 				res.statusCode = 500;
-				res.end(String(err instanceof Error ? err.message : err));
+				res.end(String(err instanceof Error ? err.stack : err));
 			});
 	});
 });
 
 server.listen(PORT, () => {
 	console.log(`indian-rail MCP  http://localhost:${PORT}/api/mcp`);
+	console.log(`health           http://localhost:${PORT}/api/health`);
 	console.log(`landing page     http://localhost:${PORT}/`);
 	console.log(
 		process.env["RAIL_API_KEY"]

@@ -325,7 +325,7 @@ const status = await trackTrain("12951");</code></pre>
 			(function () {
 				var dot = document.getElementById("status-dot");
 				var text = document.getElementById("status-text");
-				fetch("/api/mcp/health", { cache: "no-store" })
+				fetch("/api/health", { cache: "no-store" })
 					.then(function (r) {
 						return r.ok ? r.json() : Promise.reject(new Error(String(r.status)));
 					})
